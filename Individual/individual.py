@@ -7,20 +7,26 @@ STR_DELIMITER = ''
 
 class Individual(object):
     def __init__(self,chromosome=''):
-        self.__score = 0.0 ## Consumo Médio Mensal (kWh)
+        self.__score = 0.0 ## Consumo Medio Mensal (kWh)
         self.__chromosome = chromosome or self.__makeChromosome()
 
         self.length = len(self.__chromosome)
 
+    def getLength(self):
+        return len(self.__chromosome)
+
     def getScore(self):
         return  self.__score
+
     def getChromosome(self):
         return self.__chromosome
+
     def setScore(self,score):
         if score > 0:
             self.__score = score
         else:
             raise "Not acceptable negative score"
+
     def setChromosome(self,chromosome):
         if chromosome:
             self.__chromosome = chromosome
@@ -31,10 +37,10 @@ class Individual(object):
 
     def __makeChromosome(self):
         bin32 = lambda x: ''.join(reversed([str((x >> i) & 1) for i in range(32)]))
-        base_watts = np.loadtxt("C:\\Users\\Maxson Ferovante\\PycharmProjects\\Genetic-Energy\\base\\watts")
+        base_watts = np.loadtxt("Individual/base/watts.txt")
         choromosome_synthetized = ''
         for watts in base_watts:
-            choromosome_synthetized +=   bin32(int(watts)) + bin32(random.randint(0,2678400))
+            choromosome_synthetized +=   bin32(int(watts)) + bin32(random.randint(1,2678400))
         return choromosome_synthetized
 
     def evaluate(self):
@@ -52,28 +58,31 @@ class Individual(object):
         self.__pick(gene)
 
     def __twopoint(self,other):
-        cut= self.__pickPivots()
-        def mate(p0,p1):
-            chromosome = p0._chromosome[:]
-            chromosome[cut:cut+32] = p1._chromosome[cut:cut+32]
-            child = p0.__class__(chromosome)
-            child.repair(p0,p1)
-            return child
-        return mate(self,other),mate(other,self)
 
-    def __pick(self):
+        cut_one = self.__pickPivots()
+        cut_two = self.__pickPivots()
+
+        while cut_one > cut_two:
+            cut_two = self.__pickPivots()
+
+        def mate(c1,c2):
+            child = c1.__class__(
+                c1.__chromosome [:cut_one]+c2.__chromosome [cut_one:cut_two] + c1.chromosome[cut_two:]
+            )
+            return  child
+
+        return mate(self, other), mate(other, self)
+
+
+    def __pick(self,point):
         cut = self.__pickPivots()
-        point = random.choice(
-            [i for i in range(cut,cut+32)]
-        )
-        self.__chromosome[point] = str(int (not self.__chromosome[point]))
+        self.__chromosome = self.__chromosome[:cut] + str(int(not int( self.__chromosome[cut]))) + self.__chromosome[cut+1:]
 
     def __pickPivots(self):
-        cuts = [i for i in range(32,len(self.__chromosome),64)]
-        return  random.choice(cuts)
+        return  random.choice(
+            [i for i in range(32,len(self.__chromosome),64)]
+        )
 
-    def repair(self,p0,p1):
-        pass
 
     # Returns string representation of itself
     def __repr__(self):
@@ -81,15 +90,29 @@ class Individual(object):
 
     # The comparison method with other individual
     # @param other: The other individual that will be compared.
-    def __cmp__(self, other):
-        if (self.getScore() <other.getScore()):
-            return 1
-        elif (self.getScore()> other.getScore()):
-            return  0
-        else:
-            return -1
+    
+    def __eq__(self, other):
+        return (self.getScore() == other.getScore())
+
+    def __ne__(self, other):
+        return (self.getScore() != other.getScore())
+
+    def __lt__(self, other):
+        return (self.getScore() < other.getScore())
+
+    def __le__(self, other):
+        return (self.getScore() <= other.getScore())
+
+    def __gt__(self, other):
+        return (self.getScore() > other.getScore())
+
+    def __ge__(self, other):
+        return (self.getScore() >= other.getScore())
+    
     # Creates a replicate of itself.
     def copy(self):
-        clone = self.__class__(self.chromosome[:])
-        clone.score = self.getScore()
+        clone = Individual(self.chromosome)
+        clone.evaluate()
         return clone
+
+
